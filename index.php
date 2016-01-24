@@ -1,53 +1,54 @@
 <?php
-	ob_start('ob_gzhandler');
-	register_shutdown_function('ob_end_flush');
-	header('Content-Type: text/html; charset=utf-8');
-	session_start();
-	// auth
-	require "twitteroauth/autoload.php";
-	use Abraham\TwitterOAuth\TwitterOAuth;
-	define('CONSUMER_KEY',''); // TODO
-	define('CONSUMER_SECRET',''); // TODO
-	define('OAUTH_CALLBACK',getenv('OAUTH_CALLBACK'));
-	if(isset($_GET['auth'])&&($_GET['auth']=='success')){
-		if(!isset($_GET['oauth_token'])&&!isset($_GET['oauth_verifier'])){
-			$request_token=array();
-			$request_token['oauth_token']=$_SESSION['oauth_token'];
-			$request_token['oauth_token_secret']=$_SESSION['oauth_token_secret'];
-			if(isset($_REQUEST['oauth_token'])&&($request_token['oauth_token']!==$_REQUEST['oauth_token'])) $message='Erreur.';
-			else{
-				$connection=new TwitterOAuth(CONSUMER_KEY,CONSUMER_SECRET,$request_token['oauth_token'],$request_token['oauth_token_secret']);
-				$access_token=$connection->oauth("oauth/access_token",array("oauth_verifier"=>$_REQUEST['oauth_verifier']));
-				$_SESSION['access_token']=$access_token;
+
+// autoloader
+require 'vendor/autoload.php';
+
+use Abraham\TwitterOAuth\TwitterOAuth;
+
+define('CONSUMER_KEY','');
+define('CONSUMER_SECRET','');
+
+$result = "";
+
+// handle post request
+if(isset($_POST['twitter_username']) && htmlspecialchars($_POST['twitter_username']) != '')
+{
+	$access_token = $_SESSION['access_token'];
+
+	$connection = new TwitterOAuth(CONSUMER_KEY,CONSUMER_SECRET);
+
+	$statuses = $connection->get("statuses/user_timeline", array(
+		"count" => 200,
+		"exclude_replies" => false,
+		"include_rts" => true,
+		"screen_name" => htmlspecialchars($_POST['twitter_username'])
+	));
+
+	if(is_array($statuses))
+	{
+		$positives = 0;
+
+		foreach($statuses as $tweet)
+		{
+			if(
+				isset($tweet->retweeted_status) && 
+				strstr(strtolower($tweet->retweeted_status->text), 'follow') &&
+				strstr(strtolower($tweet->retweeted_status->text), 'rt')
+			)
+			{
+				$positives++;
 			}
 		}
+		$result  = "Score du compte ";
+		$result .= htmlspecialchars($_POST['twitter_username']);
+		$result .= '<span id="frt">' . $positives/2 . ' FRT';
 	}
-	else{
-		$connection=new TwitterOAuth(CONSUMER_KEY,CONSUMER_SECRET);
-		$request_token=$connection->oauth('oauth/request_token',array('oauth_callback'=>OAUTH_CALLBACK));
-		$_SESSION['oauth_token']=$request_token['oauth_token'];
-		$_SESSION['oauth_token_secret']=$request_token['oauth_token_secret'];
-		$url=$connection->url('oauth/authorize',array('oauth_token'=>$request_token['oauth_token']));
-	}
-	// result
-	if(isset($_POST['idTwitter'])&&htmlspecialchars($_POST['idTwitter'])!=''){
-		$access_token=$_SESSION['access_token'];
-		$connection=new TwitterOAuth(CONSUMER_KEY,CONSUMER_SECRET,$access_token['oauth_token'],$access_token['oauth_token_secret']);
-		$statuses=$connection->get("statuses/user_timeline",array(
-			"count"=>200,
-			"exclude_replies"=>false,
-			"include_rts"=>true,
-			"screen_name"=>htmlspecialchars($_POST['idTwitter'])
-		));
-		if(is_array($statuses)){
-			$positives=0;
-			foreach($statuses as $tweet){
-				if(isset($tweet->retweeted_status)&&strstr(strtolower($tweet->retweeted_status->text),'follow')&&strstr(strtolower($tweet->retweeted_status->text),'rt')) $positives++;
-			}
-			$result=$positives/2;
-		}
-		else $result="Cet utilisateur n'existe pas.";
-	}
+	else
+	{
+		$result = "Cet utilisateur n'existe pas.";
+	} 
+		
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -76,22 +77,11 @@
 			<h1>FollowPlusRT</h1>
 			<h2>Outil calculant le pourcentage de retweets contenant les mots-clefs 'follow' et 'rt' d'un compte Twitter.</h2>
 		</header>
-		<?php
-			if(isset($url)) echo '<a href="'.$url.'">Se connecter à Twitter pour utiliser l\'application.</a>';
-			else if($_GET['auth']=='success'){
-				if(isset($message)) echo $message;
-				else {
-		?>
 		<form method="post">
-			<input type="text" id="idTwitter" name="idTwitter" title="idTwitter" placeholder="Nom d'utilisateur Twitter">
+			<input type="text" id="twitter_username" name="twitter_username" title="twitter_username" placeholder="Nom d'utilisateur Twitter">
 			<input type="submit" value="Calculer">
 		</form>
-		<?php
-					if(isset($result)&&is_numeric($result)) echo "<span id='result'>Score du compte \"".htmlspecialchars($_POST['idTwitter'])."\" : <span id='frt'>".$result." FRT</span></span>";
-					else echo "<span id='result'>".$result."</span>";
-				}
-			}
-		?>
+		<?= '<span id="result">'.$result.'</span>'	?>
 		<section>
 			<p>Il n'est pas rare de voir passer des concours sur Twitter. Ceux-ci tournent souvent autour du même principe : il faut partager ("retweeter" ou "rt") le concours et suivre ("follow") le compte organisateur du-dit concours.
 				En échange de quelques clics, le participant s'offre alors une chance de remporter un lot qui pourrait lui plaire. L'organisateur voit quant à lui l'occasion de davantage faire connaître son compte.
@@ -110,4 +100,3 @@
 		<footer>Site crée par <a href="https://twitter.com/Desmu_CS/">@Desmu_CS</a></footer>
 	</body>
 </html>
-<?php ob_end_flush(); ?>
