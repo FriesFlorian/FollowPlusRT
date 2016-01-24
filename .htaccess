@@ -1,0 +1,53 @@
+AddDefaultCharset "utf-8"
+Options -Indexes
+
+<IfModule mod_gzip.c>
+	mod_gzip_on Yes
+	mod_gzip_dechunk Yes
+	mod_gzip_item_include file .(html?|txt|css|js|php|pl)$
+	mod_gzip_item_include handler ^cgi-script$
+	mod_gzip_item_include mime ^text/.*
+	mod_gzip_item_include mime ^application/x-javascript.*
+	mod_gzip_item_exclude mime ^image/.*
+	mod_gzip_item_exclude rspheader ^Content-Encoding:.*gzip.*
+</IfModule>
+
+<IfModule mod_headers.c>
+	Header set Content-Security-Policy "script-src 'self' http://georgeslasaucisse.fr"
+	Header set X-XSS-Protection "1; mode=block"
+	Header always append X-Frame-Options SAMEORIGIN
+	Header set X-Content-Type-Options: "nosniff"
+	<FilesMatch "\.(js|css|xml|gz)$">
+		Header append Vary: Accept-Encoding
+	</FilesMatch>
+	# Mise en cache des fichiers pour un mois
+	<FilesMatch ".(ico|jpe?g|JPE?G|png|gif|swf|flv|css|js|gz|pdf|ttf)$">
+		Header set Cache-Control "max-age=2592000"
+		# Header set Last-Modified "Tue, 27 May 2014 17:50:00 GMT"
+	</FilesMatch>
+	# Mise en cache du html et xml pour 12 heures
+	<FilesMatch ".(html|htm|xml)$">
+		Header set Cache-Control "max-age=43200"
+	</FilesMatch>
+	# Désactive la mise en cache pour les fichier PHP et CGI
+	<FilesMatch ".(php|cgi)$">
+		Header unset Cache-Control
+	</FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+	# compression avec MOD_DEFLATE
+	AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/atom+xml application/rss+xml application/xml application/javascript
+	# les proxys ne doivent pas décompresser le contenu à la place de l'internaute
+	Header append Vary User-Agent env=!dont-vary
+</IfModule>
+
+<FilesMatch "\.sql$">
+	Order Deny,Allow
+	Deny from all
+</FilesMatch>
+
+#ServerTokens Prod
+ServerSignature Off
+
+RewriteEngine On
