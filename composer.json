@@ -1,0 +1,13 @@
+{
+    "name": "friesflorian/follow-plus-rt",
+    "description": "Outil calculant le pourcentage de retweets contenant les mots-clefs 'follow' et 'rt' d'un compte",
+    "require": {
+        "abraham/twitteroauth": "^0.6.2"
+    },
+    "authors": [
+        {
+            "name": "Fries Florian",
+            "email": "fries.florian@gmail.com"
+        }
+    ]
+}
